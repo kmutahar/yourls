@@ -1,0 +1,3 @@
+[submodule "user/plugins"]
+	path = user/plugins
+	url = git@github.com:kmutahar/yourls-plugins
