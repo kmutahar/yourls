@@ -2,10 +2,8 @@
 ## YOURLS
 
 # Ignore server configuration files
-.htaccess
 *.config
 *.conf
-[Rr]obots.txt
 
 # Ignore everything in user/
 user/*
