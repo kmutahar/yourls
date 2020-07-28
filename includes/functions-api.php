@@ -192,9 +192,9 @@ function yourls_api_db_stats() {
  */
 function yourls_api_url_stats( $shorturl ) {
 	$keyword = str_replace( yourls_get_yourls_site() . '/' , '', $shorturl ); // accept either 'http://ozh.in/abc' or 'abc'
-	$keyword = yourls_sanitize_string( $keyword );
+	$keyword = yourls_sanitize_keyword( $keyword );
 
-	$return = yourls_get_link_stats( $keyword );
+	$return = yourls_get_keyword_stats( $keyword );
 	$return['simple']  = 'Need either XML or JSON format for stats';
 	return yourls_apply_filter( 'api_url_stats', $return, $shorturl );
 }
@@ -205,7 +205,7 @@ function yourls_api_url_stats( $shorturl ) {
  */
 function yourls_api_expand( $shorturl ) {
 	$keyword = str_replace( yourls_get_yourls_site() . '/' , '', $shorturl ); // accept either 'http://ozh.in/abc' or 'abc'
-	$keyword = yourls_sanitize_string( $keyword );
+	$keyword = yourls_sanitize_keyword( $keyword );
 
 	$longurl = yourls_get_keyword_longurl( $keyword );
 

@@ -37,7 +37,6 @@ $init->check_if_upgrade_needed       = false;
 $init->load_plugins                  = false; // do not attempt to load (no DB yet to store data), but do send the 'plugins_loaded' action (some code depend on it)
 $init->get_all_options               = false;
 $init->check_new_version             = false;
-$init->include_auth_funcs            = true;
 $init->include_install_upgrade_funcs = true;
 new \YOURLS\Config\Init($init);
 
@@ -48,13 +47,11 @@ yut_install_yourls();
 yourls_get_all_options();
 yourls_load_plugins();
 
-// PHPUnit 6 compatibility for previous versions
-if ( class_exists( 'PHPUnit\Runner\Version' ) && version_compare( PHPUnit\Runner\Version::id(), '6.0', '>=' ) ) {
-    class_alias( 'PHPUnit\Framework\Assert',        'PHPUnit_Framework_Assert' );
-    class_alias( 'PHPUnit\Framework\TestCase',      'PHPUnit_Framework_TestCase' );
-    class_alias( 'PHPUnit\Framework\Error\Error',   'PHPUnit_Framework_Error' );
-    class_alias( 'PHPUnit\Framework\Error\Notice',  'PHPUnit_Framework_Error_Notice' );
-    class_alias( 'PHPUnit\Framework\Error\Warning', 'PHPUnit_Framework_Error_Warning' );
+/**
+ * Compatibility with PHPUnit 6+
+ */
+if ( class_exists( 'PHPUnit\Runner\Version' ) ) {
+	require_once dirname( __FILE__ ) . '/includes/phpunit6-compat.php';
 }
 
 // At this point, tests will start
