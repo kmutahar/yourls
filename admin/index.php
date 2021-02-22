@@ -61,7 +61,7 @@ if( !empty( $search ) && !empty( $_GET['search_in'] ) ) {
 	$search_text     = $search;
 	$search          = str_replace( '*', '%', '*' . $search . '*' );
     if( $search_in == 'all' ) {
-        $where['sql'] .= ' AND CONCAT_WS("",`keyword`,`url`,`title`,`ip`) LIKE (:search)';
+        $where['sql'] .= " AND CONCAT_WS('',`keyword`,`url`,`title`,`ip`) LIKE (:search)";
         $where['binds']['search'] = $search;
         // Search across all fields. The resulting SQL will be something like:
         // SELECT * FROM `yourls_url` WHERE CONCAT_WS('',`keyword`,`url`,`title`,`ip`) LIKE ("%ozh%")
@@ -164,10 +164,10 @@ if ( isset( $_GET['u'] ) or isset( $_GET['up'] ) ) {
 	// No sanitization needed here: everything happens in yourls_add_new_link()
 	if( isset( $_GET['u'] ) ) {
 		// Old school bookmarklet: ?u=<url>
-		$url = rawurldecode( $_GET['u'] );
+		$url = urldecode( $_GET['u'] );
 	} else {
 		// New style bookmarklet: ?up=<url protocol>&us=<url slashes>&ur=<url rest>
-		$url = rawurldecode( $_GET['up'] . $_GET['us'] . $_GET['ur'] );
+		$url = urldecode( $_GET['up'] . $_GET['us'] . $_GET['ur'] );
 	}
 	$keyword = ( isset( $_GET['k'] ) ? ( $_GET['k'] ) : '' );
 	$title   = ( isset( $_GET['t'] ) ? ( $_GET['t'] ) : '' );
@@ -176,7 +176,7 @@ if ( isset( $_GET['u'] ) or isset( $_GET['up'] ) ) {
 	// If fails because keyword already exist, retry with no keyword
 	if ( isset( $return['status'] ) && $return['status'] == 'fail' && isset( $return['code'] ) && $return['code'] == 'error:keyword' ) {
 		$msg = $return['message'];
-		$return = yourls_add_new_link( $url, '', $ydb );
+		$return = yourls_add_new_link( $url, '' );
 		$return['message'] .= ' ('.$msg.')';
 	}
 

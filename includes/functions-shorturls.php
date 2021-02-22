@@ -31,7 +31,6 @@ function yourls_add_new_link( $url, $keyword = '', $title = '' ) {
     if ( false !== $pre )
         return $pre;
 
-    $url = yourls_encodeURI( $url );
     $url = yourls_sanitize_url( $url );
     if ( !$url || $url == 'http://' || $url == 'https://' ) {
         $return['status']    = 'fail';
@@ -58,7 +57,6 @@ function yourls_add_new_link( $url, $keyword = '', $title = '' ) {
 
     yourls_do_action( 'pre_add_new_link', $url, $keyword, $title );
 
-    $strip_url = stripslashes( $url );
     $return = array();
 
     // duplicates allowed or new URL => store it
@@ -87,12 +85,12 @@ function yourls_add_new_link( $url, $keyword = '', $title = '' ) {
             } else {
                 // all clear, store !
                 yourls_insert_link_in_db( $url, $keyword, $title );
-                $return['url']      = array('keyword' => $keyword, 'url' => $strip_url, 'title' => $title, 'date' => date('Y-m-d H:i:s'), 'ip' => $ip );
+                $return['url']      = array('keyword' => $keyword, 'url' => $url, 'title' => $title, 'date' => date('Y-m-d H:i:s'), 'ip' => $ip );
                 $return['status']   = 'success';
-                $return['message']  = /* //translators: eg "http://someurl/ added to DB" */ yourls_s( '%s added to database', yourls_trim_long_string( $strip_url ) );
+                $return['message']  = /* //translators: eg "http://someurl/ added to DB" */ yourls_s( '%s added to database', yourls_trim_long_string( $url ) );
                 $return['title']    = $title;
                 $return['html']     = yourls_table_add_row( $keyword, $url, $title, $ip, 0, time() );
-                $return['shorturl'] = yourls_get_yourls_site() .'/'. $keyword;
+                $return['shorturl'] = yourls_link($keyword);
             }
 
         // Create random keyword
@@ -109,12 +107,12 @@ function yourls_add_new_link( $url, $keyword = '', $title = '' ) {
                 if ( yourls_keyword_is_free($keyword) ) {
                     if (yourls_insert_link_in_db( $url, $keyword, $title )){
                         // everything ok, populate needed vars
-                        $return['url']      = array('keyword' => $keyword, 'url' => $strip_url, 'title' => $title, 'date' => $timestamp, 'ip' => $ip );
+                        $return['url']      = array('keyword' => $keyword, 'url' => $url, 'title' => $title, 'date' => $timestamp, 'ip' => $ip );
                         $return['status']   = 'success';
-                        $return['message']  = /* //translators: eg "http://someurl/ added to DB" */ yourls_s( '%s added to database', yourls_trim_long_string( $strip_url ) );
+                        $return['message']  = /* //translators: eg "http://someurl/ added to DB" */ yourls_s( '%s added to database', yourls_trim_long_string( $url ) );
                         $return['title']    = $title;
                         $return['html']     = yourls_table_add_row( $keyword, $url, $title, $ip, 0, time() );
-                        $return['shorturl'] = yourls_get_yourls_site() .'/'. $keyword;
+                        $return['shorturl'] = yourls_link($keyword);
                     } else {
                         // database error, couldnt store result
                         $return['status']   = 'fail';
@@ -135,10 +133,10 @@ function yourls_add_new_link( $url, $keyword = '', $title = '' ) {
 
         $return['status']   = 'fail';
         $return['code']     = 'error:url';
-        $return['url']      = array( 'keyword' => $url_exists->keyword, 'url' => $strip_url, 'title' => $url_exists->title, 'date' => $url_exists->timestamp, 'ip' => $url_exists->ip, 'clicks' => $url_exists->clicks );
-        $return['message']  = /* //translators: eg "http://someurl/ already exists" */ yourls_s( '%s already exists in database', yourls_trim_long_string( $strip_url ) );
+        $return['url']      = array( 'keyword' => $url_exists->keyword, 'url' => $url, 'title' => $url_exists->title, 'date' => $url_exists->timestamp, 'ip' => $url_exists->ip, 'clicks' => $url_exists->clicks );
+        $return['message']  = /* //translators: eg "http://someurl/ already exists" */ yourls_s( '%s already exists in database', yourls_trim_long_string( $url ) );
         $return['title']    = $url_exists->title;
-        $return['shorturl'] = yourls_get_yourls_site() .'/'. $url_exists->keyword;
+        $return['shorturl'] = yourls_link($url_exists->keyword);
     }
 
     yourls_do_action( 'post_add_new_link', $url, $keyword, $title, $return );
@@ -222,14 +220,13 @@ function yourls_keyword_is_reserved( $keyword ) {
 function yourls_delete_link_by_keyword( $keyword ) {
     // Allow plugins to short-circuit the whole function
     $pre = yourls_apply_filter( 'shunt_delete_link_by_keyword', null, $keyword );
-    if ( null !== $pre )
+    if ( null !== $pre ) {
         return $pre;
-
-    global $ydb;
+    }
 
     $table = YOURLS_DB_TABLE_URL;
     $keyword = yourls_sanitize_keyword($keyword);
-    $delete = $ydb->fetchAffected("DELETE FROM `$table` WHERE `keyword` = :keyword", array('keyword' => $keyword));
+    $delete = yourls_get_db()->fetchAffected("DELETE FROM `$table` WHERE `keyword` = :keyword", array('keyword' => $keyword));
     yourls_do_action( 'delete_link', $keyword, $delete );
     return $delete;
 }
@@ -239,8 +236,6 @@ function yourls_delete_link_by_keyword( $keyword ) {
  *
  */
 function yourls_insert_link_in_db( $url, $keyword, $title = '' ) {
-    global $ydb;
-
     $url       = yourls_sanitize_url($url);
     $keyword   = yourls_sanitize_keyword($keyword);
     $title     = yourls_sanitize_title($title);
@@ -255,7 +250,7 @@ function yourls_insert_link_in_db( $url, $keyword, $title = '' ) {
         'timestamp' => $timestamp,
         'ip'        => $ip,
     );
-    $insert = $ydb->fetchAffected("INSERT INTO `$table` (`keyword`, `url`, `title`, `timestamp`, `ip`, `clicks`) VALUES(:keyword, :url, :title, :timestamp, :ip, 0);", $binds);
+    $insert = yourls_get_db()->fetchAffected("INSERT INTO `$table` (`keyword`, `url`, `title`, `timestamp`, `ip`, `clicks`) VALUES(:keyword, :url, :title, :timestamp, :ip, 0);", $binds);
 
     yourls_do_action( 'insert_link', (bool)$insert, $url, $keyword, $title, $timestamp, $ip );
 
@@ -274,13 +269,13 @@ function yourls_insert_link_in_db( $url, $keyword, $title = '' ) {
 function yourls_long_url_exists( $url ) {
     // Allow plugins to short-circuit the whole function
     $pre = yourls_apply_filter( 'shunt_url_exists', false, $url );
-    if ( false !== $pre )
+    if ( false !== $pre ) {
         return $pre;
+    }
 
-    global $ydb;
     $table = YOURLS_DB_TABLE_URL;
     $url   = yourls_sanitize_url($url);
-    $url_exists = $ydb->fetchObject("SELECT * FROM `$table` WHERE `url` = :url", array('url'=>$url));
+    $url_exists = yourls_get_db()->fetchObject("SELECT * FROM `$table` WHERE `url` = :url", array('url'=>$url));
 
     if ($url_exists === false) {
         $url_exists = NULL;
@@ -299,7 +294,7 @@ function yourls_edit_link( $url, $keyword, $newkeyword='', $title='' ) {
     if ( null !== $pre )
         return $pre;
 
-    global $ydb;
+    $ydb = yourls_get_db();
 
     $table = YOURLS_DB_TABLE_URL;
     $url = yourls_sanitize_url($url);
@@ -339,7 +334,7 @@ function yourls_edit_link( $url, $keyword, $newkeyword='', $title='' ) {
             $binds = array('url' => $url, 'newkeyword' => $newkeyword, 'title' => $title, 'keyword' => $keyword);
             $update_url = $ydb->fetchAffected($sql, $binds);
         if( $update_url ) {
-            $return['url']     = array( 'keyword' => $newkeyword, 'shorturl' => yourls_get_yourls_site().'/'.$newkeyword, 'url' => $strip_url, 'display_url' => yourls_trim_long_string( $strip_url ), 'title' => $strip_title, 'display_title' => yourls_trim_long_string( $strip_title ) );
+            $return['url']     = array( 'keyword' => $newkeyword, 'shorturl' => yourls_link($newkeyword), 'url' => $strip_url, 'display_url' => yourls_trim_long_string( $strip_url ), 'title' => $strip_title, 'display_title' => yourls_trim_long_string( $strip_title ) );
             $return['status']  = 'success';
             $return['message'] = yourls__( 'Link updated in database' );
         } else {
@@ -363,16 +358,15 @@ function yourls_edit_link( $url, $keyword, $newkeyword='', $title='' ) {
 function yourls_edit_link_title( $keyword, $title ) {
     // Allow plugins to short-circuit the whole function
     $pre = yourls_apply_filter( 'shunt_edit_link_title', null, $keyword, $title );
-    if ( null !== $pre )
+    if ( null !== $pre ) {
         return $pre;
-
-    global $ydb;
+    }
 
     $keyword = yourls_sanitize_keyword( $keyword );
     $title = yourls_sanitize_title( $title );
 
     $table = YOURLS_DB_TABLE_URL;
-    $update = $ydb->fetchAffected("UPDATE `$table` SET `title` = :title WHERE `keyword` = :keyword;", array('title' => $title, 'keyword' => $keyword));
+    $update = yourls_get_db()->fetchAffected("UPDATE `$table` SET `title` = :title WHERE `keyword` = :keyword;", array('title' => $title, 'keyword' => $keyword));
 
     return $update;
 }
@@ -416,15 +410,13 @@ function yourls_is_page($keyword) {
  * @return bool               true if keyword is taken (ie there is a short URL for it), false otherwise
  */
 function yourls_keyword_is_taken( $keyword, $use_cache = true ) {
-
     // Allow plugins to short-circuit the whole function
     $pre = yourls_apply_filter( 'shunt_keyword_is_taken', false, $keyword );
-    if ( false !== $pre )
+    if ( false !== $pre ) {
         return $pre;
+    }
 
-    global $ydb;
     $taken = false;
-
     // To check if a keyword is already associated with a short URL, we fetch all info matching that keyword. This
     // will save a query in case of a redirection in yourls-go.php because info will be cached
     if ( yourls_get_keyword_infos($keyword, $use_cache) ) {
@@ -447,7 +439,7 @@ function yourls_keyword_is_taken( $keyword, $use_cache = true ) {
  * @return false|object       false if not found, object with URL properties if found
  */
 function yourls_get_keyword_infos( $keyword, $use_cache = true ) {
-    global $ydb;
+    $ydb = yourls_get_db();
     $keyword = yourls_sanitize_keyword( $keyword );
 
     yourls_do_action( 'pre_get_keyword', $keyword, $use_cache );
@@ -544,12 +536,10 @@ function yourls_get_keyword_timestamp( $keyword, $notfound = false ) {
  * @return array            stats
  */
 function yourls_get_keyword_stats( $shorturl ) {
-    global $ydb;
-
     $table_url = YOURLS_DB_TABLE_URL;
     $shorturl  = yourls_sanitize_keyword( $shorturl );
 
-    $res = $ydb->fetchObject("SELECT * FROM `$table_url` WHERE `keyword` = :keyword", array('keyword' => $shorturl));
+    $res = yourls_get_db()->fetchObject("SELECT * FROM `$table_url` WHERE `keyword` = :keyword", array('keyword' => $shorturl));
     $return = array();
 
     if( !$res ) {
@@ -563,7 +553,7 @@ function yourls_get_keyword_stats( $shorturl ) {
             'statusCode' => 200,
             'message'    => 'success',
             'link'       => array(
-                'shorturl' => yourls_get_yourls_site() .'/'. $res->keyword,
+                'shorturl' => yourls_link($res->keyword),
                 'url'      => $res->url,
                 'title'    => $res->title,
                 'timestamp'=> $res->timestamp,
@@ -585,7 +575,6 @@ function yourls_get_keyword_stats( $shorturl ) {
  * @return array array of keywords
  */
 function yourls_get_longurl_keywords( $longurl, $order = 'ASC' ) {
-    global $ydb;
     $longurl = yourls_sanitize_url($longurl);
     $table   = YOURLS_DB_TABLE_URL;
     $sql     = "SELECT `keyword` FROM `$table` WHERE `url` = :url";
@@ -594,5 +583,5 @@ function yourls_get_longurl_keywords( $longurl, $order = 'ASC' ) {
         $sql .= " ORDER BY `keyword` ".$order;
     }
 
-    return yourls_apply_filter( 'get_longurl_keywords', $ydb->fetchCol($sql, array('url'=>$longurl)), $longurl );
+    return yourls_apply_filter( 'get_longurl_keywords', yourls_get_db()->fetchCol($sql, array('url'=>$longurl)), $longurl );
 }

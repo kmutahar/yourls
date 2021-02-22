@@ -10,7 +10,7 @@ function yourls_html_logo() {
 	<header role="banner">
 	<h1>
 		<a href="<?php echo yourls_admin_url( 'index.php' ) ?>" title="YOURLS"><span>YOURLS</span>: <span>Y</span>our <span>O</span>wn <span>URL</span> <span>S</span>hortener<br/>
-		<img src="<?php yourls_site_url(); ?>/images/yourls-logo.svg" id="yourls-logo" alt="YOURLS" title="YOURLS" /></a>
+		<img src="<?php yourls_site_url(); ?>/images/yourls-logo.svg?v=<?php echo YOURLS_VERSION; ?>" id="yourls-logo" alt="YOURLS" title="YOURLS" /></a>
 	</h1>
 	</header>
 	<?php
@@ -58,10 +58,7 @@ function yourls_html_head( $context = 'index', $title = '' ) {
 
 	// Force no cache for all admin pages
 	if( yourls_is_admin() && !headers_sent() ) {
-		header( 'Expires: Thu, 23 Mar 1972 07:00:00 GMT' );
-		header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s' ) . ' GMT' );
-		header( 'Cache-Control: no-cache, must-revalidate, max-age=0' );
-		header( 'Pragma: no-cache' );
+        yourls_no_cache_headers();
 		yourls_content_type_header( yourls_apply_filter( 'html_head_content-type', 'text/html' ) );
 		yourls_do_action( 'admin_headers', $context, $title );
 	}
@@ -87,8 +84,8 @@ function yourls_html_head( $context = 'index', $title = '' ) {
 	<meta name="generator" content="YOURLS <?php echo YOURLS_VERSION ?>" />
 	<meta name="description" content="YOURLS &raquo; Your Own URL Shortener' | <?php yourls_site_url(); ?>" />
 	<?php yourls_do_action('html_head_meta', $context); ?>
-	<link rel="shortcut icon" href="<?php yourls_get_yourls_favicon_url(); ?>" />
-	<script src="<?php yourls_site_url(); ?>/js/jquery-3.3.1.min.js?v=<?php echo YOURLS_VERSION; ?>" type="text/javascript"></script>
+    <?php yourls_html_favicon(); ?>
+	<script src="<?php yourls_site_url(); ?>/js/jquery-3.5.1.min.js?v=<?php echo YOURLS_VERSION; ?>" type="text/javascript"></script>
 	<script src="<?php yourls_site_url(); ?>/js/common.js?v=<?php echo YOURLS_VERSION; ?>" type="text/javascript"></script>
 	<script src="<?php yourls_site_url(); ?>/js/jquery.notifybar.js?v=<?php echo YOURLS_VERSION; ?>" type="text/javascript"></script>
 	<link rel="stylesheet" href="<?php yourls_site_url(); ?>/css/style.css?v=<?php echo YOURLS_VERSION; ?>" type="text/css" media="screen" />
@@ -399,6 +396,9 @@ function yourls_share_box( $longurl, $shorturl, $title = '', $text='', $shortlin
 	if ( false !== $pre )
 		return $pre;
 
+    // Make sure IDN domains are in their UTF8 form
+    $shorturl = yourls_normalize_uri($shorturl);
+
 	$text   = ( $text ? '"'.$text.'" ' : '' );
 	$title  = ( $title ? "$title " : '' );
 	$share  = yourls_esc_textarea( $title.$text.$shorturl );
@@ -488,7 +488,7 @@ function yourls_table_edit_row( $keyword ) {
 	$id = yourls_string2htmlid( $keyword ); // used as HTML #id
 	$url = yourls_get_keyword_longurl( $keyword );
 	$title = htmlspecialchars( yourls_get_keyword_title( $keyword ) );
-	$safe_url = yourls_esc_attr( rawurldecode( $url ) );
+	$safe_url = yourls_esc_attr( $url );
 	$safe_title = yourls_esc_attr( $title );
 	$safe_keyword = yourls_esc_attr( $keyword );
 
@@ -519,8 +519,8 @@ RETURN;
  *
  * @return string HTML of the edit row
  */
-function yourls_table_add_row( $keyword, $url, $title = '', $ip, $clicks, $timestamp ) {
-    $keyword  = yourls_sanitize_keyword($keyword);
+function yourls_table_add_row( $keyword, $url, $title, $ip, $clicks, $timestamp ) {
+	$keyword  = yourls_sanitize_keyword($keyword);
 	$id       = yourls_string2htmlid( $keyword ); // used as HTML #id
 	$shorturl = yourls_link( $keyword );
 
@@ -595,7 +595,7 @@ function yourls_table_add_row( $keyword, $url, $title = '', $ip, $clicks, $times
 			'long_url'      => yourls_esc_url( $url ),
 			'title_attr'    => yourls_esc_attr( $title ),
 			'title_html'    => yourls_esc_html( yourls_trim_long_string( $title ) ),
-			'long_url_html' => yourls_esc_html( yourls_trim_long_string( $url ) ),
+			'long_url_html' => yourls_esc_html( yourls_trim_long_string( urldecode( $url ) ) ),
 			'warning'       => $protocol_warning,
 		),
 		'timestamp' => array(
@@ -650,7 +650,7 @@ function yourls_table_head() {
 		'actions'  => yourls__( 'Actions' )
 	) );
 	foreach( $cells as $k => $v ) {
-		echo "<th id='main_table_head_$k'>$v</th>\n";
+		echo "<th id='main_table_head_$k'><span>$v</span></th>\n";
 	}
 
 	$end = "</tr></thead>\n";
@@ -746,7 +746,7 @@ function yourls_html_menu() {
 
 	// Build menu links
 	if( defined( 'YOURLS_USER' ) ) {
-		$logout_link = yourls_apply_filter( 'logout_link', sprintf( yourls__('Hello <strong>%s</strong>'), YOURLS_USER ) . ' (<a href="' . yourls_admin_url() . '?action=logout" title="' . yourls_esc_attr__( 'Logout' ) . '">' . yourls__( 'Logout' ) . '</a>)' );
+		$logout_link = yourls_apply_filter( 'logout_link', sprintf( yourls__('Hello <strong>%s</strong>'), YOURLS_USER ) . ' (<a href="' . yourls_admin_url( 'index.php' ) . '?action=logout" title="' . yourls_esc_attr__( 'Logout' ) . '">' . yourls__( 'Logout' ) . '</a>)' );
 	} else {
 		$logout_link = yourls_apply_filter( 'logout_link', '' );
 	}
@@ -921,23 +921,6 @@ function yourls_new_core_version_notice() {
 }
 
 /**
- * Send a filerable content type header
- *
- * @since 1.7
- * @param string $type content type ('text/html', 'application/json', ...)
- * @return bool whether header was sent
- */
-function yourls_content_type_header( $type ) {
-    yourls_do_action( 'content_type_header', $type );
-	if( !headers_sent() ) {
-		$charset = yourls_apply_filter( 'content_type_header_charset', 'utf-8' );
-		header( "Content-Type: $type; charset=$charset" );
-		return true;
-	}
-	return false;
-}
-
-/**
  * Get search text from query string variables search_protocol, search_slashes and search
  *
  * Some servers don't like query strings containing "(ht|f)tp(s)://". A javascript bit
@@ -988,8 +971,7 @@ LINK;
  * @return void
  */
 function yourls_set_html_context($context) {
-    global $ydb;
-    $ydb->set_html_context($context);
+    yourls_get_db()->set_html_context($context);
 }
 
 /**
@@ -999,6 +981,22 @@ function yourls_set_html_context($context) {
  * @return string
  */
 function yourls_get_html_context() {
-    global $ydb;
-    $ydb->get_html_context();
+    yourls_get_db()->get_html_context();
 }
+
+/**
+ * Print HTML link for favicon
+ *
+ * @since 1.7.10
+ * @return mixed|void
+ */
+function yourls_html_favicon() {
+    // Allow plugins to short-circuit the whole function
+    $pre = yourls_apply_filter( 'shunt_html_favicon', false );
+    if ( false !== $pre ) {
+        return $pre;
+    }
+
+    printf( '<link rel="shortcut icon" href="%s" />', yourls_get_yourls_favicon_url(false) );
+}
+

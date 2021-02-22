@@ -149,7 +149,7 @@ function yourls_apply_filter( $hook, $value = '' ) {
     reset( $yourls_filters[ $hook ] );
     do {
         foreach ( (array)current( $yourls_filters[ $hook ] ) as $the_ ) {
-            if ( !is_null( $the_[ 'function' ] ) ) {
+            if ( !is_null($the_[ 'function' ]) ) {
                 $args[ 1 ] = $value;
                 $count = $the_[ 'accepted_args' ];
                 if ( is_null( $count ) ) {
@@ -421,7 +421,7 @@ function yourls_get_plugin_data( $file ) {
             continue;
         }
 
-        $plugin_data[ trim($matches[3]) ] = trim($matches[4]);
+        $plugin_data[ trim($matches[3]) ] = yourls_esc_html(trim($matches[4]));
     }
 
     return $plugin_data;
@@ -553,7 +553,7 @@ function yourls_deactivate_plugin( $plugin ) {
     }
 
     // Deactivate the plugin
-    global $ydb;
+    $ydb = yourls_get_db();
     $plugins = $ydb->get_plugins();
     $key = array_search( $plugin, $plugins );
     if ( $key !== false ) {
@@ -628,13 +628,19 @@ function yourls_plugin_admin_page( $plugin_page ) {
         yourls_die( yourls__( 'This page does not exist. Maybe a plugin you thought was activated is inactive?' ), yourls__( 'Invalid link' ) );
     }
 
+    // Check the plugin page function is actually callable
+    $page_function = $pages[ $plugin_page ][ 'function' ];
+    if (!is_callable($page_function)) {
+        yourls_die( yourls__( 'This page cannot be displayed because the displaying function is not callable.' ), yourls__( 'Invalid code' ) );
+    }
+
     // Draw the page itself
     yourls_do_action( 'load-'.$plugin_page );
     yourls_html_head( 'plugin_page_'.$plugin_page, $pages[ $plugin_page ][ 'title' ] );
     yourls_html_logo();
     yourls_html_menu();
 
-    call_user_func( $pages[ $plugin_page ][ 'function' ] );
+    $page_function( );
 
     yourls_html_footer();
 }

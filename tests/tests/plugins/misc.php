@@ -9,17 +9,16 @@
  * @group plugins
  * @since 0.1
  */
-class Plugin_Misc_Tests extends PHPUnit_Framework_TestCase {
+class Plugin_Misc_Tests extends PHPUnit\Framework\TestCase {
 
-    protected function tearDown() {
+    protected function tearDown(): void {
         // remove filters and actions
         yourls_remove_all_filters( 'is_ssl' );
         yourls_remove_all_filters( 'needs_ssl' );
         yourls_remove_all_actions('pre_yourls_die');
 
         // unregister plugin pages
-        global $ydb;
-        $ydb->set_plugin_pages(array());
+        yourls_get_db()->set_plugin_pages(array());
     }
 
     /**
@@ -84,7 +83,7 @@ class Plugin_Misc_Tests extends PHPUnit_Framework_TestCase {
     * @since 0.1
     */
     public function test_register_plugin_page() {
-        global $ydb;
+        $ydb = yourls_get_db();
         $plugin = rand_str();
         $title = rand_str();
         $func = rand_str();
@@ -113,7 +112,6 @@ class Plugin_Misc_Tests extends PHPUnit_Framework_TestCase {
     * @since 0.1
     */
     public function test_list_plugin_page() {
-        global $ydb;
         $plugin = rand_str();
         $title = rand_str();
         $func = rand_str();
@@ -133,10 +131,12 @@ class Plugin_Misc_Tests extends PHPUnit_Framework_TestCase {
     /**
     * Simulate a non existent plugin admin page
     *
-    * @expectedException Exception
     * @since 0.1
     */
     public function test_plugin_admin_page_fake() {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('I have died');
+
         // intercept yourls_die() before it actually dies
         yourls_add_action( 'pre_yourls_die', function() { throw new Exception( 'I have died' ); } );
 
@@ -150,7 +150,6 @@ class Plugin_Misc_Tests extends PHPUnit_Framework_TestCase {
     * @since 0.1
     */
     public function test_plugin_admin_page() {
-        global $ydb;
         $plugin = rand_str();
         $title  = rand_str();
         $action = rand_str();
@@ -166,6 +165,30 @@ class Plugin_Misc_Tests extends PHPUnit_Framework_TestCase {
         // The page should have been drawn, and the plugin page callback should have been triggered
         $this->assertSame( 1, yourls_did_action( 'load-' . $plugin ) );
         $this->assertSame( 1, yourls_did_action( $action ) );
+    }
+
+    /**
+    * Simulate a valid plugin admin page but with a drawing function that is not callable
+    *
+    * @since 0.1
+    */
+    public function test_plugin_admin_page_not_callable() {
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('I have died');
+
+        $plugin = rand_str();
+        $title  = rand_str();
+        $action = rand_str();
+        $func   = rand_str();
+        yourls_register_plugin_page( $plugin, $title, $func );
+
+        $this->assertSame( 0, yourls_did_action( 'load-' . $plugin ) );
+
+        // intercept yourls_die() before it actually dies
+        yourls_add_action( 'pre_yourls_die', function() { throw new Exception( 'I have died' ); } );
+
+        // This should trigger yourls_die()
+        yourls_plugin_admin_page( $plugin );
     }
 
 }

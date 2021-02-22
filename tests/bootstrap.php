@@ -6,10 +6,10 @@
 // Globalize some YOURLS variables because PHPUnit loads this inside a function
 // See https://github.com/sebastianbergmann/phpunit/issues/325
 // This has to be done before including any file
-global $ydb, $yourls_user_passwords, $yourls_reserved_URL,        // main object & config file
-       $yourls_filters, $yourls_actions,                          // used by plugin API
-       $yourls_locale, $yourls_l10n, $yourls_locale_formats,      // used by L10N API
-       $yourls_allowedentitynames, $yourls_allowedprotocols;      // used by KSES
+global $yourls_user_passwords, $yourls_reserved_URL,          // main object & config file
+       $yourls_filters, $yourls_actions,                      // used by plugin API
+       $yourls_locale, $yourls_l10n, $yourls_locale_formats,  // used by L10N API
+       $yourls_allowedentitynames, $yourls_allowedprotocols;  // used by KSES
 
 require_once dirname( __FILE__ ) . '/includes/utils.php';
 require_once dirname( __FILE__ ) . '/includes/install.php';
@@ -46,13 +46,6 @@ yut_install_yourls();
 // All set -- instantiate the rest
 yourls_get_all_options();
 yourls_load_plugins();
-
-/**
- * Compatibility with PHPUnit 6+
- */
-if ( class_exists( 'PHPUnit\Runner\Version' ) ) {
-	require_once dirname( __FILE__ ) . '/includes/phpunit6-compat.php';
-}
 
 // At this point, tests will start
 echo "YOURLS installed, starting PHPUnit\n\n";

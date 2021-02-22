@@ -74,8 +74,7 @@ function yourls_update_next_decimal( $int = '' ) {
  * @return string
  */
 function yourls_xml_encode( $array ) {
-    require_once( YOURLS_INC.'/functions-xml.php' );
-    return ( new yourls_array2xml() )->array2xml( $array );
+    return (\Spatie\ArrayToXml\ArrayToXml::convert($array));
 }
 
 /**
@@ -90,13 +89,12 @@ function yourls_update_clicks( $keyword, $clicks = false ) {
 	if ( false !== $pre )
 		return $pre;
 
-	global $ydb;
 	$keyword = yourls_sanitize_keyword( $keyword );
 	$table = YOURLS_DB_TABLE_URL;
 	if ( $clicks !== false && is_int( $clicks ) && $clicks >= 0 )
-		$update = $ydb->fetchAffected( "UPDATE `$table` SET `clicks` = :clicks WHERE `keyword` = :keyword", [ 'clicks' => $clicks, 'keyword' => $keyword ] );
+		$update = yourls_get_db()->fetchAffected( "UPDATE `$table` SET `clicks` = :clicks WHERE `keyword` = :keyword", [ 'clicks' => $clicks, 'keyword' => $keyword ] );
 	else
-		$update = $ydb->fetchAffected( "UPDATE `$table` SET `clicks` = clicks + 1 WHERE `keyword` = :keyword", [ 'keyword' => $keyword ] );
+		$update = yourls_get_db()->fetchAffected( "UPDATE `$table` SET `clicks` = clicks + 1 WHERE `keyword` = :keyword", [ 'keyword' => $keyword ] );
 
 	yourls_do_action( 'update_clicks', $keyword, $update, $clicks );
 	return $update;
@@ -107,8 +105,6 @@ function yourls_update_clicks( $keyword, $clicks = false ) {
  *
  */
 function yourls_get_stats( $filter = 'top', $limit = 10, $start = 0 ) {
-	global $ydb;
-
 	switch( $filter ) {
 		case 'bottom':
 			$sort_by    = '`clicks`';
@@ -136,14 +132,14 @@ function yourls_get_stats( $filter = 'top', $limit = 10, $start = 0 ) {
 	if ( $limit > 0 ) {
 
 		$table_url = YOURLS_DB_TABLE_URL;
-		$results = $ydb->fetchObjects( "SELECT * FROM `$table_url` WHERE 1=1 ORDER BY $sort_by $sort_order LIMIT $start, $limit;" );
+		$results = yourls_get_db()->fetchObjects( "SELECT * FROM `$table_url` WHERE 1=1 ORDER BY $sort_by $sort_order LIMIT $start, $limit;" );
 
 		$return = [];
 		$i = 1;
 
 		foreach ( (array)$results as $res ) {
 			$return['links']['link_'.$i++] = [
-				'shorturl' => yourls_get_yourls_site() .'/'. $res->keyword,
+				'shorturl' => yourls_link($res->keyword),
 				'url'      => $res->url,
 				'title'    => $res->title,
 				'timestamp'=> $res->timestamp,
@@ -171,23 +167,12 @@ function yourls_get_stats( $filter = 'top', $limit = 10, $start = 0 ) {
  * @return array
  */
 function yourls_get_db_stats( $where = [ 'sql' => '', 'binds' => [] ] ) {
-	global $ydb;
 	$table_url = YOURLS_DB_TABLE_URL;
 
-	$totals = $ydb->fetchObject( "SELECT COUNT(keyword) as count, SUM(clicks) as sum FROM `$table_url` WHERE 1=1 " . $where['sql'] , $where['binds'] );
+	$totals = yourls_get_db()->fetchObject( "SELECT COUNT(keyword) as count, SUM(clicks) as sum FROM `$table_url` WHERE 1=1 " . $where['sql'] , $where['binds'] );
 	$return = [ 'total_links' => $totals->count, 'total_clicks' => $totals->sum ];
 
 	return yourls_apply_filter( 'get_db_stats', $return, $where );
-}
-
-/**
- * Get number of SQL queries performed
- *
- */
-function yourls_get_num_queries() {
-	global $ydb;
-
-	return yourls_apply_filter( 'get_num_queries', $ydb->get_num_queries() );
 }
 
 /**
@@ -273,6 +258,38 @@ function yourls_redirect_shorturl($url, $keyword) {
     }
 
     yourls_redirect( $url, 301 );
+}
+
+/**
+ * Send headers to explicitely tell browser not to cache content or redirection
+ *
+ * @since 1.7.10
+ * @return void
+ */
+function yourls_no_cache_headers() {
+    if( !headers_sent() ) {
+        header( 'Expires: Thu, 23 Mar 1972 07:00:00 GMT' );
+        header( 'Last-Modified: ' . gmdate( 'D, d M Y H:i:s' ) . ' GMT' );
+        header( 'Cache-Control: no-cache, must-revalidate, max-age=0' );
+        header( 'Pragma: no-cache' );
+    }
+}
+
+/**
+ * Send a filerable content type header
+ *
+ * @since 1.7
+ * @param string $type content type ('text/html', 'application/json', ...)
+ * @return bool whether header was sent
+ */
+function yourls_content_type_header( $type ) {
+    yourls_do_action( 'content_type_header', $type );
+	if( !headers_sent() ) {
+		$charset = yourls_apply_filter( 'content_type_header_charset', 'utf-8' );
+		header( "Content-Type: $type; charset=$charset" );
+		return true;
+	}
+	return false;
 }
 
 /**
