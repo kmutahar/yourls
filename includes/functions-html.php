@@ -59,6 +59,7 @@ function yourls_html_head( $context = 'index', $title = '' ) {
 	// Force no cache for all admin pages
 	if( yourls_is_admin() && !headers_sent() ) {
         yourls_no_cache_headers();
+        yourls_no_frame_header();
 		yourls_content_type_header( yourls_apply_filter( 'html_head_content-type', 'text/html' ) );
 		yourls_do_action( 'admin_headers', $context, $title );
 	}
@@ -725,6 +726,7 @@ function yourls_login_screen( $error_msg = '' ) {
 				yourls_do_action( 'login_form_bottom' );
 			?>
 			<p style="text-align: right;">
+			    <?php yourls_nonce_field('admin_login'); ?>
 				<input type="submit" id="submit" name="submit" value="<?php yourls_e( 'Login' ); ?>" class="button" />
 			</p>
 			<?php
@@ -918,29 +920,6 @@ function yourls_new_core_version_notice() {
 		$msg = yourls_s( '<a href="%s">YOURLS version %s</a> is available. Please update!', 'http://yourls.org/download', $latest );
 		yourls_add_notice( $msg );
 	}
-}
-
-/**
- * Get search text from query string variables search_protocol, search_slashes and search
- *
- * Some servers don't like query strings containing "(ht|f)tp(s)://". A javascript bit
- * explodes the search text into protocol, slashes and the rest (see JS function
- * split_search_text_before_search()) and this function glues pieces back together
- * See issue https://github.com/YOURLS/YOURLS/issues/1576
- *
- * @since 1.7
- * @return string Search string
- */
-function yourls_get_search_text() {
-	$search = '';
-	if( isset( $_GET['search_protocol'] ) )
-		$search .= $_GET['search_protocol'];
-	if( isset( $_GET['search_slashes'] ) )
-		$search .= $_GET['search_slashes'];
-	if( isset( $_GET['search'] ) )
-		$search .= $_GET['search'];
-
-	return htmlspecialchars( trim( $search ) );
 }
 
 /**
